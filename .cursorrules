@@ -1,0 +1,15 @@
+# Git Commit Rules
+
+When generating Git commit messages, use this format:
+
+<type>(<scope>): <short summary>
+<BLANK LINE>
+<body>
+
+Rules:
+- The first line is the commit title.
+- Use imperative mood ("add" not "added").
+- Keep the title ≤ 72 characters.
+- Valid types: feat, fix, docs, style, refactor, perf, test, chore.
+- Scope is optional.
+- The body briefly explains what and why.
