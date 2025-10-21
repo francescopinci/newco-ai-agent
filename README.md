@@ -55,7 +55,21 @@ Edit `.env`:
 OPENAI_API_KEY=your_openai_api_key_here
 SUPABASE_URL=your_supabase_url_here
 SUPABASE_KEY=your_supabase_anon_key_here
+TEST_MODE=false
 ```
+
+### Test Mode
+
+For testing the app without going through the full interview flow, set `TEST_MODE=true` in your `.env` file. This will:
+
+- Use a simplified system prompt that asks only 2 questions
+- Guide users to end the conversation quickly
+- Perfect for e2e testing of the app flow
+
+When `TEST_MODE=true`, the AI will:
+1. Ask for your name and brief background
+2. Ask one follow-up question
+3. Immediately guide you to click "End Conversation"
 
 ### 3. Local Development
 

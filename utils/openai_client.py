@@ -7,7 +7,7 @@ import os
 import time
 from typing import List, Dict, Any, Generator, Optional
 from openai import OpenAI, RateLimitError, APITimeoutError, APIConnectionError, AuthenticationError
-from .prompts import SYSTEM_PROMPT, SUMMARY_PROMPT, EVALUATION_PROMPT
+from .prompts import SYSTEM_PROMPT, SUMMARY_PROMPT, EVALUATION_PROMPT, TEST_SYSTEM_PROMPT
 from .logger import ErrorLogger, logger
 from config import (
     OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_MAX_TOKENS,
@@ -15,7 +15,8 @@ from config import (
     OPENAI_SUMMARY_MODEL, OPENAI_SUMMARY_TEMPERATURE, OPENAI_SUMMARY_MAX_TOKENS,
     OPENAI_SUMMARY_TOP_P, OPENAI_SUMMARY_PRESENCE_PENALTY, OPENAI_SUMMARY_FREQUENCY_PENALTY,
     OPENAI_EVALUATION_MODEL, OPENAI_EVALUATION_TEMPERATURE, OPENAI_EVALUATION_MAX_TOKENS,
-    OPENAI_EVALUATION_TOP_P, OPENAI_EVALUATION_PRESENCE_PENALTY, OPENAI_EVALUATION_FREQUENCY_PENALTY
+    OPENAI_EVALUATION_TOP_P, OPENAI_EVALUATION_PRESENCE_PENALTY, OPENAI_EVALUATION_FREQUENCY_PENALTY,
+    TEST_MODE
 )
 
 # Module-level variable to store the client (singleton pattern)
@@ -287,8 +288,15 @@ def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str
         
         logger.info(f"Creating messages with system prompt for {len(conversation_messages)} conversation messages")
         
+        # Choose system prompt based on test mode
+        system_prompt = TEST_SYSTEM_PROMPT if TEST_MODE else SYSTEM_PROMPT
+        if TEST_MODE:
+            logger.info("Using TEST_SYSTEM_PROMPT for test mode")
+        else:
+            logger.info("Using SYSTEM_PROMPT for normal mode")
+        
         return [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": system_prompt}
         ] + conversation_messages
         
     except Exception as e:
