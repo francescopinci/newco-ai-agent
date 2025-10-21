@@ -31,11 +31,11 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
     try:
         client = get_openai_client()
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=messages,
             stream=True,
-            temperature=0.7,
-            max_tokens=1000
+            temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
+            max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
         )
         
         for chunk in stream:
@@ -43,7 +43,9 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
                 yield chunk.choices[0].delta.content
                 
     except Exception as e:
-        yield f"Error: {str(e)}"
+        # Log the error but don't yield it as content
+        print(f"OpenAI API error: {str(e)}")
+        yield "I apologize, but I'm experiencing technical difficulties. Please try again later."
 
 def generate_summary(messages: List[Dict[str, str]]) -> str:
     """
@@ -65,18 +67,19 @@ def generate_summary(messages: List[Dict[str, str]]) -> str:
         ])
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
                 {"role": "user", "content": SUMMARY_PROMPT.format(conversation=conversation_text)}
             ],
-            temperature=0.3,
-            max_tokens=500
+            temperature=float(os.getenv("OPENAI_SUMMARY_TEMPERATURE", "0.3")),
+            max_tokens=int(os.getenv("OPENAI_SUMMARY_MAX_TOKENS", "500"))
         )
         
         return response.choices[0].message.content.strip()
         
     except Exception as e:
-        return f"Error generating summary: {str(e)}"
+        print(f"Error generating summary: {str(e)}")
+        return "Unable to generate summary due to technical difficulties."
 
 def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
     """
@@ -98,12 +101,12 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         ])
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
                 {"role": "user", "content": EVALUATION_PROMPT.format(conversation=conversation_text)}
             ],
-            temperature=0.3,
-            max_tokens=800
+            temperature=float(os.getenv("OPENAI_EVALUATION_TEMPERATURE", "0.3")),
+            max_tokens=int(os.getenv("OPENAI_EVALUATION_MAX_TOKENS", "800"))
         )
         
         # Parse JSON response
@@ -111,6 +114,7 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         return json.loads(evaluation_text)
         
     except json.JSONDecodeError:
+        print("Failed to parse evaluation JSON")
         return {
             "sentiment": "neutral",
             "key_topics": [],
@@ -121,6 +125,7 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
             "error": "Failed to parse evaluation JSON"
         }
     except Exception as e:
+        print(f"Error generating evaluation: {str(e)}")
         return {
             "sentiment": "neutral",
             "key_topics": [],
@@ -141,6 +146,17 @@ def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str
     Returns:
         List[Dict]: Messages with system prompt prepended
     """
+    # Validate input
+    if not conversation_messages:
+        raise ValueError("Conversation messages cannot be empty")
+    
+    # Validate message structure
+    for msg in conversation_messages:
+        if not isinstance(msg, dict) or 'role' not in msg or 'content' not in msg:
+            raise ValueError("Invalid message format: each message must have 'role' and 'content' keys")
+        if not isinstance(msg['content'], str) or not msg['content'].strip():
+            raise ValueError("Message content cannot be empty")
+    
     return [
         {"role": "system", "content": SYSTEM_PROMPT}
     ] + conversation_messages

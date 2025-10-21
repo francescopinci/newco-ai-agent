@@ -4,11 +4,10 @@ Supabase client for storing conversations and summaries.
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from supabase import create_client, Client
 from .openai_client import generate_summary, generate_evaluation
-from openai import OpenAI
 
 # Module-level variable to store the client (singleton pattern)
 _supabase_client = None
@@ -46,8 +45,8 @@ def save_conversation(
         data = {
             "session_id": session_id,
             "messages": messages,
-            "created_at": datetime.utcnow().isoformat(),
-            "ended_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "ended_at": datetime.now(timezone.utc).isoformat()
         }
         
         if summary:

@@ -145,12 +145,16 @@ def main():
                 full_response = ""
                 
                 # Prepare messages with system prompt
-                messages_with_system = create_messages_with_system_prompt(st.session_state.messages)
-                
-                # Stream response from OpenAI
-                for chunk in get_chat_response(messages_with_system):
-                    full_response += chunk
-                    message_placeholder.markdown(full_response + "▌")
+                try:
+                    messages_with_system = create_messages_with_system_prompt(st.session_state.messages)
+                except ValueError as e:
+                    message_placeholder.markdown(f"Error: {str(e)}")
+                    full_response = f"Error: {str(e)}"
+                else:
+                    # Stream response from OpenAI
+                    for chunk in get_chat_response(messages_with_system):
+                        full_response += chunk
+                        message_placeholder.markdown(full_response + "▌")
                 
                 # Update placeholder with final response
                 message_placeholder.markdown(full_response)
