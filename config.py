@@ -4,6 +4,10 @@ Only secrets need to be configured manually in Streamlit Cloud.
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
 
 # OpenAI Agent Configuration (conversational interaction)
 OPENAI_MODEL = "gpt-4o-mini"
@@ -22,7 +26,7 @@ OPENAI_SUMMARY_PRESENCE_PENALTY = 0.0
 OPENAI_SUMMARY_FREQUENCY_PENALTY = 0.2
 
 # Evaluation Configuration (analytical assessment)
-OPENAI_EVALUATION_MODEL = "gpt-4o-mini"
+OPENAI_EVALUATION_MODEL = "gpt-4o"
 OPENAI_EVALUATION_TEMPERATURE = 0.4
 OPENAI_EVALUATION_MAX_TOKENS = 1400
 OPENAI_EVALUATION_TOP_P = 1.0

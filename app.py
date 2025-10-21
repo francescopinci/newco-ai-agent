@@ -13,12 +13,6 @@ from utils.openai_client import get_chat_response, create_messages_with_system_p
 from utils.logger import ErrorLogger, logger
 from config import APP_TITLE, APP_DESCRIPTION, TEST_MODE
 
-# Load environment variables
-try:
-    load_dotenv()
-    logger.info("Environment variables loaded successfully")
-except Exception as e:
-    ErrorLogger.log_error(e, "Environment variable loading")
 
 # Page configuration (MUST BE FIRST Streamlit command)
 st.set_page_config(
