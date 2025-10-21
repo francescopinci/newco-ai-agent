@@ -281,12 +281,10 @@ def main():
             if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended or not st.session_state.interview_complete):
                 end_conversation()
             
-            # Warning about keeping tab open
+            # Note about end conversation button
             if not st.session_state.conversation_ended:
                 st.markdown("---")
-                if st.session_state.interview_complete:
-                    st.warning("**Important**: When ending a conversation, please keep this tab open until you see the confirmation message. Closing the tab too early may result in data loss.")
-                else:
+                if not st.session_state.interview_complete:
                     st.info("**Note**: The 'End Conversation' button will be enabled once the AI completes the interview.")
             
             st.markdown("---")
