@@ -261,6 +261,15 @@ def main():
         with st.sidebar:
             st.header("Controls")
             
+            # Debug: Show test mode status only in test mode
+            if TEST_MODE:
+                st.markdown("---")
+                st.markdown("**Test Mode Active**")
+                st.markdown(f"**TEST_MODE:** `{TEST_MODE}`")
+                st.markdown(f"**Environment:** `{os.getenv('TEST_MODE', 'not set')}`")
+                st.info("Using simplified test prompt - only 2 questions")
+                st.markdown("---")
+            
             if st.button("Start New Conversation", use_container_width=True):
                 start_new_conversation()
             

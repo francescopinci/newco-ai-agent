@@ -26,9 +26,8 @@ def get_supabase_client():
             if not supabase_url or not supabase_key:
                 raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
             
-            # Configure client options with timeout
+            # Configure client options
             options = ClientOptions(
-                timeout=30,  # 30 second timeout for reliability
                 auto_refresh_token=True,
                 persist_session=True
             )

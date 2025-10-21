@@ -292,8 +292,10 @@ def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str
         system_prompt = TEST_SYSTEM_PROMPT if TEST_MODE else SYSTEM_PROMPT
         if TEST_MODE:
             logger.info("Using TEST_SYSTEM_PROMPT for test mode")
+            print(f"DEBUG: Using TEST_SYSTEM_PROMPT - TEST_MODE={TEST_MODE}")
         else:
             logger.info("Using SYSTEM_PROMPT for normal mode")
+            print(f"DEBUG: Using SYSTEM_PROMPT - TEST_MODE={TEST_MODE}")
         
         return [
             {"role": "system", "content": system_prompt}
