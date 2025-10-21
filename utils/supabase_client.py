@@ -28,7 +28,7 @@ def get_supabase_client():
             
             # Configure client options with timeout
             options = ClientOptions(
-                timeout=30,  # 30 second timeout
+                timeout=30,  # 30 second timeout for reliability
                 auto_refresh_token=True,
                 persist_session=True
             )

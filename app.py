@@ -104,7 +104,7 @@ def start_new_conversation():
         st.error(f"Failed to start new conversation: {str(e)}")
 
 def end_conversation():
-    """End the current conversation and save to database."""
+    """End the current conversation and save to database with summary generation."""
     try:
         if not st.session_state.messages:
             ErrorLogger.log_warning("Attempted to end conversation with no messages", "End conversation")
@@ -113,29 +113,77 @@ def end_conversation():
         
         logger.info(f"Ending conversation with {len(st.session_state.messages)} messages")
         
+        # Show clear instructions to user
+        st.info("**Please wait while we process your conversation...**")
+        st.warning("**Important**: Please keep this tab open until you see the confirmation message. Closing the tab now may result in data loss.")
+        
+        # Create progress indicators
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # Step 1: Save conversation data
+        status_text.text("Saving conversation...")
+        progress_bar.progress(33)
+        
+        # Step 2: Generate summary
+        status_text.text("Generating conversation summary...")
+        progress_bar.progress(66)
+        
+        # Step 3: Complete save with summary and evaluation
+        status_text.text("Finalizing and saving everything...")
+        progress_bar.progress(90)
+        
         # Save conversation with summary and evaluation
         success = save_conversation_with_summary(
             st.session_state.session_id,
             st.session_state.messages
         )
         
+        # Complete progress
+        progress_bar.progress(100)
+        status_text.text("Complete!")
+        
         if success:
             st.session_state.conversation_ended = True
             logger.info(f"Conversation ended and saved successfully for session: {st.session_state.session_id}")
-            st.success("Thank you for the conversation! Your chat has been saved.")
+            
+            # Clear progress indicators
+            progress_bar.empty()
+            status_text.empty()
+            
+            # Show success message with clear instructions
+            st.success("**Conversation Successfully Saved!**")
+            st.info("Your conversation has been saved with a complete summary and analysis.")
+            st.success("**It's now safe to close this tab or start a new conversation.**")
+            
         else:
             ErrorLogger.log_warning("Failed to save conversation", "End conversation", {
                 "session_id": st.session_state.session_id,
                 "messages_count": len(st.session_state.messages)
             })
-            st.error("Failed to save conversation. Please try again.")
+            
+            # Clear progress indicators
+            progress_bar.empty()
+            status_text.empty()
+            
+            st.error("**Failed to save conversation. Please try again.**")
+            st.warning("If the problem persists, please contact support with your Session ID.")
             
     except Exception as e:
         ErrorLogger.log_error(e, "End conversation", {
             "session_id": st.session_state.session_id,
             "messages_count": len(st.session_state.messages) if st.session_state.messages else 0
         })
-        st.error(f"Error saving conversation: {str(e)}")
+        
+        # Clear any progress indicators
+        if 'progress_bar' in locals():
+            progress_bar.empty()
+        if 'status_text' in locals():
+            status_text.empty()
+            
+        st.error("**An error occurred while saving your conversation.**")
+        st.error(f"Error details: {str(e)}")
+        st.warning("Please try again or contact support if the problem persists.")
 
 def display_chat_message(role: str, content: str):
     """Display a chat message in the UI."""
@@ -180,7 +228,7 @@ def main():
         logger.info("Starting main application")
         
         # Header
-        st.title("🎯 The Unfair Advantage Scout")
+        st.title("The Unfair Advantage Scout")
         st.markdown("Expert mentor and interviewer for aspiring startup founders")
         
         # Validate environment variables
@@ -205,21 +253,26 @@ def main():
         with st.sidebar:
             st.header("Controls")
             
-            if st.button("🔄 Start New Conversation", use_container_width=True):
+            if st.button("Start New Conversation", use_container_width=True):
                 start_new_conversation()
             
-            if st.button("✅ End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended):
+            if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended):
                 end_conversation()
+            
+            # Warning about keeping tab open
+            if not st.session_state.conversation_ended:
+                st.markdown("---")
+                st.warning("**Important**: When ending a conversation, please keep this tab open until you see the confirmation message. Closing the tab too early may result in data loss.")
             
             st.markdown("---")
             st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
             
             if st.session_state.conversation_ended:
-                st.success("✅ Conversation ended and saved")
+                st.success("Conversation ended and saved")
             
             # Error count display (for debugging)
             if hasattr(st.session_state, 'error_count') and st.session_state.error_count > 0:
-                st.warning(f"⚠️ Errors encountered: {st.session_state.error_count}")
+                st.warning(f"Errors encountered: {st.session_state.error_count}")
     
         # Main chat interface
         if not st.session_state.conversation_ended:
