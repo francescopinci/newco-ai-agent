@@ -256,6 +256,10 @@ def main():
             st.warning("Supabase credentials not found. Conversations will not be saved.")
             logger.warning("Supabase credentials missing - conversations will not be saved")
     
+        # Calculate state variables for UI
+        end_button_disabled = st.session_state.conversation_ended or not st.session_state.interview_complete
+        chat_disabled = st.session_state.conversation_ended or st.session_state.interview_complete
+        
         # Sidebar with controls
         with st.sidebar:
             st.header("Controls")
@@ -272,7 +276,8 @@ def main():
             if st.button("Start New Conversation", use_container_width=True):
                 start_new_conversation()
             
-            if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended or not st.session_state.interview_complete):
+            # Enable end conversation button when interview is complete and conversation hasn't ended
+            if st.button("End Conversation", use_container_width=True, disabled=end_button_disabled):
                 end_conversation()
             
             
@@ -325,7 +330,10 @@ def main():
             
             # Chat input with comprehensive error handling
             try:
-                if prompt := st.chat_input("Type your message here..."):
+                # Use pre-calculated chat disabled state
+                chat_placeholder = "Interview complete - please end conversation" if st.session_state.interview_complete else "Type your message here..."
+                
+                if prompt := st.chat_input(chat_placeholder, disabled=chat_disabled):
                     # Validate input BEFORE processing
                     if not prompt.strip():
                         ErrorLogger.log_warning("Empty prompt received", "Chat input")
@@ -386,9 +394,11 @@ def main():
                             
                             # Check if the interview is complete based on LLM response
                             if not st.session_state.interview_complete:
-                                if "INTERVIEW_COMPLETE" in full_response:
+                                # Check for interview completion signal (case-insensitive)
+                                if "INTERVIEW_COMPLETE" in full_response.upper():
                                     st.session_state.interview_complete = True
                                     logger.info("Interview completion detected in assistant response")
+                                    st.success("🎉 Interview Complete! Please click 'End Conversation' to save your interview.")
                                     
                         except Exception as e:
                             ErrorLogger.log_error(e, "Add assistant message to session state")
