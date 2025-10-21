@@ -83,11 +83,7 @@ def initialize_session_state():
         if "interview_complete" not in st.session_state:
             st.session_state.interview_complete = False
             logger.info("Initialized interview_complete in session state")
-        
-        if "error_count" not in st.session_state:
-            st.session_state.error_count = 0
-            logger.info("Initialized error_count in session state")
-            
+          
     except Exception as e:
         ErrorLogger.log_error(e, "Session state initialization")
         st.error("Failed to initialize application. Please refresh the page.")
@@ -104,7 +100,6 @@ def start_new_conversation():
         st.session_state.session_id = generate_session_id()
         st.session_state.conversation_ended = False
         st.session_state.interview_complete = False
-        st.session_state.error_count = 0
         logger.info(f"New conversation started with session ID: {st.session_state.session_id}")
         st.rerun()
     except Exception as e:
@@ -121,25 +116,8 @@ def end_conversation():
         
         logger.info(f"Ending conversation with {len(st.session_state.messages)} messages")
         
-        # Show clear instructions to user
-        st.info("**Please wait while we process your conversation...**")
-        st.warning("**Important**: Please keep this tab open until you see the confirmation message. Closing the tab now may result in data loss.")
-        
-        # Create progress indicators
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        # Step 1: Save conversation data
-        status_text.text("Saving conversation...")
-        progress_bar.progress(33)
-        
-        # Step 2: Generate summary
-        status_text.text("Generating conversation summary...")
-        progress_bar.progress(66)
-        
-        # Step 3: Complete save with summary and evaluation
-        status_text.text("Finalizing and saving everything...")
-        progress_bar.progress(90)
+        # Show waiting message
+        st.info("🔄 Please wait while we process your interview...")
         
         # Save conversation with summary and evaluation
         success = save_conversation_with_summary(
@@ -147,50 +125,24 @@ def end_conversation():
             st.session_state.messages
         )
         
-        # Complete progress
-        progress_bar.progress(100)
-        status_text.text("Complete!")
-        
         if success:
             st.session_state.conversation_ended = True
             logger.info(f"Conversation ended and saved successfully for session: {st.session_state.session_id}")
-            
-            # Clear progress indicators
-            progress_bar.empty()
-            status_text.empty()
-            
-            # Show success message with clear instructions
-            st.success("**Conversation Successfully Saved!**")
-            st.info("Your conversation has been saved with a complete summary and analysis.")
-            st.success("**It's now safe to close this tab or start a new conversation.**")
-            
+            st.success("Conversation saved successfully! You can close this window now.")
+            st.rerun()  # Trigger re-render to update button state
         else:
             ErrorLogger.log_warning("Failed to save conversation", "End conversation", {
                 "session_id": st.session_state.session_id,
                 "messages_count": len(st.session_state.messages)
             })
-            
-            # Clear progress indicators
-            progress_bar.empty()
-            status_text.empty()
-            
-            st.error("**Failed to save conversation. Please try again.**")
-            st.warning("If the problem persists, please contact support with your Session ID.")
+            st.error("Failed to save conversation. Please try again.")
             
     except Exception as e:
         ErrorLogger.log_error(e, "End conversation", {
             "session_id": st.session_state.session_id,
             "messages_count": len(st.session_state.messages) if st.session_state.messages else 0
         })
-        
-        # Clear any progress indicators
-        if 'progress_bar' in locals():
-            progress_bar.empty()
-        if 'status_text' in locals():
-            status_text.empty()
-            
-        st.error("**An error occurred while saving your conversation.**")
-        st.warning("Please try again or contact support if the problem persists.")
+        st.error("An error occurred while saving your conversation. Please try again.")
 
 def display_chat_message(role: str, content: str):
     """Display a chat message in the UI."""
@@ -256,44 +208,7 @@ def main():
             st.warning("Supabase credentials not found. Conversations will not be saved.")
             logger.warning("Supabase credentials missing - conversations will not be saved")
     
-        # Calculate state variables for UI
-        end_button_disabled = st.session_state.conversation_ended or not st.session_state.interview_complete
-        chat_disabled = st.session_state.conversation_ended or st.session_state.interview_complete
-        
-        # Sidebar with controls
-        with st.sidebar:
-            st.header("Controls")
-            
-            # Debug: Show test mode status only in test mode
-            if TEST_MODE:
-                st.markdown("---")
-                st.markdown("**Test Mode Active**")
-                st.markdown(f"**TEST_MODE:** `{TEST_MODE}`")
-                st.markdown(f"**Environment:** `{os.getenv('TEST_MODE', 'not set')}`")
-                st.info("Using simplified test prompt - only 2 questions")
-                st.markdown("---")
-            
-            if st.button("Start New Conversation", use_container_width=True):
-                start_new_conversation()
-            
-            # Enable end conversation button when interview is complete and conversation hasn't ended
-            if st.button("End Conversation", use_container_width=True, disabled=end_button_disabled):
-                end_conversation()
-            
-            
-            st.markdown("---")
-            st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
-            
-            if st.session_state.conversation_ended:
-                st.success("Conversation ended and saved")
-            elif st.session_state.interview_complete:
-                st.success("Interview complete - ready to end")
-            else:
-                st.info("Interview in progress...")
-            
-            # Error count display (for debugging)
-            if hasattr(st.session_state, 'error_count') and st.session_state.error_count > 0:
-                st.warning(f"Errors encountered: {st.session_state.error_count}")
+        # UI state will be calculated after message processing
     
         # Main chat interface
         if not st.session_state.conversation_ended:
@@ -328,9 +243,48 @@ def main():
                     ErrorLogger.log_error(e, "Send initial greeting")
                     st.error("Unable to start conversation. Please refresh the page.")
             
-            # Chat input with comprehensive error handling
+            # Chat input will be rendered after UI state calculation
+        
+        # Calculate UI state after message processing
+        end_button_disabled = st.session_state.conversation_ended or not st.session_state.interview_complete
+        chat_disabled = st.session_state.conversation_ended or st.session_state.interview_complete
+        
+        # Sidebar with controls
+        with st.sidebar:
+            st.header("Controls")
+            
+            # Debug: Show test mode status only in test mode
+            if TEST_MODE:
+                st.markdown("---")
+                st.markdown("**Test Mode Active**")
+                st.markdown(f"**TEST_MODE:** `{TEST_MODE}`")
+                st.markdown(f"**Environment:** `{os.getenv('TEST_MODE', 'not set')}`")
+                st.info("Using simplified test prompt - only 2 questions")
+                st.markdown("---")
+            
+            if st.button("Start New Conversation", use_container_width=True):
+                start_new_conversation()
+            
+            # Enable end conversation button when interview is complete and conversation hasn't ended
+            if st.button("End Conversation", use_container_width=True, disabled=end_button_disabled):
+                end_conversation()
+            
+            
+            st.markdown("---")
+            st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
+            
+            if st.session_state.conversation_ended:
+                st.success("Conversation ended and saved")
+            elif st.session_state.interview_complete:
+                st.success("Interview complete - ready to end")
+            else:
+                st.info("Interview in progress...")
+            
+        
+        # Chat input with comprehensive error handling (after UI state calculation)
+        if not st.session_state.conversation_ended:
             try:
-                # Use pre-calculated chat disabled state
+                # Use calculated chat disabled state
                 chat_placeholder = "Interview complete - please end conversation" if st.session_state.interview_complete else "Type your message here..."
                 
                 if prompt := st.chat_input(chat_placeholder, disabled=chat_disabled):
@@ -353,81 +307,41 @@ def main():
                     
                     # Generate and display assistant response
                     try:
+                        # Prepare messages with system prompt
+                        messages_with_system = create_messages_with_system_prompt(st.session_state.messages)
+                        logger.info(f"Created messages with system prompt: {len(messages_with_system)} total messages")
+                        
+                        # Get complete response from OpenAI
+                        full_response = get_chat_response(messages_with_system)
+                        
+                        # Display the response
                         with st.chat_message("assistant"):
-                            message_placeholder = st.empty()
-                            full_response = ""
-                            
-                            # Prepare messages with system prompt
-                            try:
-                                messages_with_system = create_messages_with_system_prompt(st.session_state.messages)
-                                logger.info(f"Created messages with system prompt: {len(messages_with_system)} total messages")
-                            except ValueError as e:
-                                ErrorLogger.log_error(e, "Create messages with system prompt")
-                                message_placeholder.markdown(f"Error: {str(e)}")
-                                full_response = f"Error: {str(e)}"
-                                st.session_state.error_count += 1
-                            else:
-                                # Stream response from OpenAI
-                                try:
-                                    chunk_count = 0
-                                    for chunk in get_chat_response(messages_with_system):
-                                        if chunk:  # Only process non-empty chunks
-                                            chunk_count += 1
-                                            full_response += chunk
-                                            message_placeholder.markdown(full_response + "▌")
-                                    
-                                    logger.info(f"Received {chunk_count} chunks from OpenAI")
-                                    
-                                except Exception as e:
-                                    ErrorLogger.log_error(e, "OpenAI streaming response")
-                                    full_response = "I apologize, but I'm experiencing technical difficulties. Please try again later."
-                                    message_placeholder.markdown(full_response)
-                                    st.session_state.error_count += 1
-                            
-                            # Update placeholder with final response
-                            message_placeholder.markdown(full_response)
+                            st.markdown(full_response)
                         
                         # Add assistant response to session state
-                        try:
-                            st.session_state.messages.append({"role": "assistant", "content": full_response})
-                            logger.info(f"Added assistant response to session state: {len(full_response)} characters")
-                            
-                            # Check if the interview is complete based on LLM response
-                            if not st.session_state.interview_complete:
-                                # Check for interview completion signal (case-insensitive)
-                                if "INTERVIEW_COMPLETE" in full_response.upper():
-                                    st.session_state.interview_complete = True
-                                    logger.info("Interview completion detected in assistant response")
-                                    st.success("🎉 Interview Complete! Please click 'End Conversation' to save your interview.")
-                                    
-                        except Exception as e:
-                            ErrorLogger.log_error(e, "Add assistant message to session state")
-                            st.error("Unable to save the response. Please try again.")
-                            st.session_state.error_count += 1
-                    
+                        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                        logger.info(f"Added assistant response to session state: {len(full_response)} characters")
+                        
+                        # Check if the interview is complete based on LLM response
+                        if not st.session_state.interview_complete:
+                            if "INTERVIEW COMPLETE" in full_response.upper():
+                                st.session_state.interview_complete = True
+                                logger.info("Interview completion detected in assistant response")
+                                st.success("🎉 Interview Complete! Please click End Conversation to save your interview.")
+                                st.rerun()  # Trigger immediate UI update
+                                
                     except Exception as e:
                         ErrorLogger.log_error(e, "Assistant response generation")
                         st.error("Unable to generate response. Please try again.")
-                        st.session_state.error_count += 1
                         
             except Exception as e:
                 ErrorLogger.log_error(e, "Chat input processing")
                 st.error("Unable to process your input. Please try again.")
-                st.session_state.error_count += 1
     
         else:
             # Conversation ended state
             st.markdown("### Conversation Ended")
             st.markdown("This conversation has been saved and summarized.")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Start New Conversation", use_container_width=True):
-                    start_new_conversation()
-            
-            with col2:
-                if st.button("📋 View Session ID", use_container_width=True):
-                    st.code(st.session_state.session_id)
         
         logger.info("Main application completed successfully")
         
@@ -440,9 +354,6 @@ def main():
         st.error("A critical error occurred. Please refresh the page and try again.")
         st.warning("If the problem persists, please contact support.")
         
-        # Increment error count if possible
-        if hasattr(st.session_state, 'error_count'):
-            st.session_state.error_count += 1
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@ OpenAI API client for chat functionality and summarization.
 import json
 import os
 import time
-from typing import List, Dict, Any, Generator, Optional
+from typing import List, Dict, Any, Optional
 from openai import OpenAI, RateLimitError, APITimeoutError, APIConnectionError, AuthenticationError
 from .prompts import SYSTEM_PROMPT, SUMMARY_PROMPT, EVALUATION_PROMPT, TEST_SYSTEM_PROMPT
 from .logger import ErrorLogger, logger
@@ -38,18 +38,17 @@ def get_openai_client():
             raise
     return _openai_client
 
-def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, None]:
+def get_chat_response(messages: List[Dict[str, str]]) -> str:
     """
-    Get streaming response from OpenAI for chat.
+    Get complete response from OpenAI for chat.
     
     Args:
         messages: List of message dictionaries with 'role' and 'content' keys
         
-    Yields:
-        str: Streaming response chunks
+    Returns:
+        str: Complete response from OpenAI
     """
     max_retries = 3
-    retry_delay = 1
     
     for attempt in range(max_retries):
         try:
@@ -63,58 +62,37 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
             presence_penalty = OPENAI_PRESENCE_PENALTY
             frequency_penalty = OPENAI_FREQUENCY_PENALTY
             
-            logger.info(f"Starting OpenAI chat completion with model: {model}")
+            logger.info(f"Starting OpenAI chat completion with model: {model} (attempt {attempt + 1})")
             
-            stream = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                stream=True,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
                 presence_penalty=presence_penalty,
-                frequency_penalty=frequency_penalty,
-                timeout=5  # 5 second timeout
+                frequency_penalty=frequency_penalty
             )
             
-            chunk_count = 0
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    chunk_count += 1
-                    yield chunk.choices[0].delta.content
+            content = response.choices[0].message.content
+            logger.info(f"OpenAI response received successfully: {len(content)} characters")
+            return content
             
-            logger.info(f"OpenAI streaming completed successfully with {chunk_count} chunks")
-            return  # Success - exit function
-            
-        except RateLimitError as e:
-            error_msg = "I'm currently experiencing high demand. Please try again in a few moments."
-        except APITimeoutError as e:
-            error_msg = "The request timed out. Please try again."
-        except APIConnectionError as e:
-            error_msg = "I'm having trouble connecting. Please check your internet connection and try again."
-        except AuthenticationError as e:
-            error_msg = "Authentication error. Please contact support."
-            ErrorLogger.log_error(e, "OpenAI authentication error", {
-                "user_message": "Authentication failed - please check API key configuration"
-            })
-            yield error_msg
-            return  # Don't retry auth errors
         except Exception as e:
-            error_msg = "I apologize, but I'm experiencing technical difficulties. Please try again later."
-        
-        # Log error and decide whether to retry
-        ErrorLogger.log_error(e, f"OpenAI API error (attempt {attempt + 1})", {
-            "attempt": attempt + 1,
-            "max_retries": max_retries,
-            "messages_count": len(messages)
-        })
-        
-        if attempt < max_retries - 1:
-            time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
-            continue
-        else:
-            yield error_msg
-            return
+            logger.error(f"OpenAI API error (attempt {attempt + 1}/{max_retries}): {str(e)}")
+            
+            if attempt == max_retries - 1:
+                ErrorLogger.log_error(e, "OpenAI API failed after all retries", {
+                    "attempt": attempt + 1,
+                    "max_retries": max_retries
+                })
+                raise Exception("Unable to get response. Please try again.")
+            
+            # Simple retry - wait 1 second
+            time.sleep(1)
+    
+    # This should never be reached, but just in case
+    raise Exception("Maximum retry attempts exceeded.")
 
 def generate_summary(messages: List[Dict[str, str]]) -> str:
     """
