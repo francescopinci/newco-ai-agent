@@ -71,7 +71,7 @@ def initialize_session_state():
                 logger.info(f"Generated session ID: {st.session_state.session_id}")
             except Exception as e:
                 ErrorLogger.log_error(e, "Session ID generation in initialization")
-                st.error(f"Failed to generate session ID: {str(e)}")
+                st.error("Unable to start session. Please refresh the page.")
                 st.stop()
         
         if "conversation_ended" not in st.session_state:
@@ -102,7 +102,7 @@ def start_new_conversation():
         st.rerun()
     except Exception as e:
         ErrorLogger.log_error(e, "Start new conversation")
-        st.error(f"Failed to start new conversation: {str(e)}")
+        st.error("Unable to start new conversation. Please try again.")
 
 def end_conversation():
     """End the current conversation and save to database with summary generation."""
@@ -183,7 +183,6 @@ def end_conversation():
             status_text.empty()
             
         st.error("**An error occurred while saving your conversation.**")
-        st.error(f"Error details: {str(e)}")
         st.warning("Please try again or contact support if the problem persists.")
 
 def display_chat_message(role: str, content: str):
@@ -236,13 +235,13 @@ def main():
         env_valid, missing_vars = validate_environment()
         
         if not env_valid:
-            st.error(f"Missing required environment variables: {', '.join(missing_vars)}")
-            st.error("Please set these variables in your environment or .env file.")
+            st.error("Application configuration is incomplete.")
+            st.error("Please contact support for assistance.")
             return
         
         # Check for OpenAI API key specifically
         if not os.getenv("OPENAI_API_KEY"):
-            st.error("OpenAI API key not found. Please set OPENAI_API_KEY in your environment variables.")
+            st.error("Unable to connect to AI service. Please contact support.")
             return
         
         # Check for Supabase credentials
@@ -289,7 +288,7 @@ def main():
                     display_chat_message(message["role"], message["content"])
             except Exception as e:
                 ErrorLogger.log_error(e, "Display chat history")
-                st.error("Error displaying chat history. Please refresh the page.")
+                st.error("Unable to load conversation history. Please refresh the page.")
             
             # Chat input with comprehensive error handling
             try:
@@ -307,7 +306,7 @@ def main():
                         display_chat_message("user", prompt)
                     except Exception as e:
                         ErrorLogger.log_error(e, "Add user message to session state")
-                        st.error("Failed to add your message. Please try again.")
+                        st.error("Unable to process your message. Please try again.")
                         return
                     
                     # Generate and display assistant response
@@ -352,17 +351,17 @@ def main():
                             logger.info(f"Added assistant response to session state: {len(full_response)} characters")
                         except Exception as e:
                             ErrorLogger.log_error(e, "Add assistant message to session state")
-                            st.error("Failed to save the response. Please try again.")
+                            st.error("Unable to save the response. Please try again.")
                             st.session_state.error_count += 1
                     
                     except Exception as e:
                         ErrorLogger.log_error(e, "Assistant response generation")
-                        st.error("Failed to generate response. Please try again.")
+                        st.error("Unable to generate response. Please try again.")
                         st.session_state.error_count += 1
                         
             except Exception as e:
                 ErrorLogger.log_error(e, "Chat input processing")
-                st.error("Error processing your input. Please try again.")
+                st.error("Unable to process your input. Please try again.")
                 st.session_state.error_count += 1
     
         else:
@@ -388,7 +387,7 @@ def main():
             "messages_count": len(st.session_state.messages) if hasattr(st.session_state, 'messages') else 0
         })
         st.error("A critical error occurred. Please refresh the page and try again.")
-        st.error(f"Error details: {str(e)}")
+        st.warning("If the problem persists, please contact support.")
         
         # Increment error count if possible
         if hasattr(st.session_state, 'error_count'):
