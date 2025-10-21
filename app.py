@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from utils.supabase_client import save_conversation_with_summary, generate_session_id
 from utils.openai_client import get_chat_response, create_messages_with_system_prompt
 from utils.logger import ErrorLogger, logger
-from config import APP_TITLE, APP_DESCRIPTION
+from config import APP_TITLE, APP_DESCRIPTION, TEST_MODE
 
 # Load environment variables
 try:
@@ -297,6 +297,23 @@ def main():
             except Exception as e:
                 ErrorLogger.log_error(e, "Display chat history")
                 st.error("Unable to load conversation history. Please refresh the page.")
+            
+            # Send initial greeting if no messages yet
+            if not st.session_state.messages:
+                try:
+                    # Generate initial greeting based on test mode
+                    if TEST_MODE:
+                        initial_message = "Hello! I'm in test mode. What's your name and brief background?"
+                    else:
+                        initial_message = "Hello! I'm The Unfair Advantage Scout. I'm here to help you identify your unique strengths and insights that could serve as your unfair advantage when building a startup. Let's start with your name and a description of your main professional experiences over the past five years, including organizations and roles."
+                    
+                    # Add initial message to session state
+                    st.session_state.messages.append({"role": "assistant", "content": initial_message})
+                    display_chat_message("assistant", initial_message)
+                    logger.info("Sent initial greeting message")
+                except Exception as e:
+                    ErrorLogger.log_error(e, "Send initial greeting")
+                    st.error("Unable to start conversation. Please refresh the page.")
             
             # Chat input with comprehensive error handling
             try:
