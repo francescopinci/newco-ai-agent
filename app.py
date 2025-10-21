@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from utils.supabase_client import save_conversation_with_summary, generate_session_id
 from utils.openai_client import get_chat_response, create_messages_with_system_prompt
 from utils.logger import ErrorLogger, logger
+from config import APP_TITLE, APP_DESCRIPTION
 
 # Load environment variables
 try:
@@ -228,8 +229,8 @@ def main():
         logger.info("Starting main application")
         
         # Header
-        st.title("The Unfair Advantage Scout")
-        st.markdown("Expert mentor and interviewer for aspiring startup founders")
+        st.title(APP_TITLE)
+        st.markdown(APP_DESCRIPTION)
         
         # Validate environment variables
         env_valid, missing_vars = validate_environment()

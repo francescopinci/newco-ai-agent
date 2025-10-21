@@ -9,6 +9,14 @@ from typing import List, Dict, Any, Generator, Optional
 from openai import OpenAI, RateLimitError, APITimeoutError, APIConnectionError, AuthenticationError
 from .prompts import SYSTEM_PROMPT, SUMMARY_PROMPT, EVALUATION_PROMPT
 from .logger import ErrorLogger, logger
+from config import (
+    OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_MAX_TOKENS,
+    OPENAI_TOP_P, OPENAI_PRESENCE_PENALTY, OPENAI_FREQUENCY_PENALTY,
+    OPENAI_SUMMARY_MODEL, OPENAI_SUMMARY_TEMPERATURE, OPENAI_SUMMARY_MAX_TOKENS,
+    OPENAI_SUMMARY_TOP_P, OPENAI_SUMMARY_PRESENCE_PENALTY, OPENAI_SUMMARY_FREQUENCY_PENALTY,
+    OPENAI_EVALUATION_MODEL, OPENAI_EVALUATION_TEMPERATURE, OPENAI_EVALUATION_MAX_TOKENS,
+    OPENAI_EVALUATION_TOP_P, OPENAI_EVALUATION_PRESENCE_PENALTY, OPENAI_EVALUATION_FREQUENCY_PENALTY
+)
 
 # Module-level variable to store the client (singleton pattern)
 _openai_client = None
@@ -46,10 +54,13 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
         try:
             client = get_openai_client()
             
-            # Validate environment variables
-            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-            temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
-            max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
+            # Agent configuration - optimized for conversational interaction
+            model = OPENAI_MODEL
+            temperature = OPENAI_TEMPERATURE
+            max_tokens = OPENAI_MAX_TOKENS
+            top_p = OPENAI_TOP_P
+            presence_penalty = OPENAI_PRESENCE_PENALTY
+            frequency_penalty = OPENAI_FREQUENCY_PENALTY
             
             logger.info(f"Starting OpenAI chat completion with model: {model}")
             
@@ -59,6 +70,9 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
                 stream=True,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                top_p=top_p,
+                presence_penalty=presence_penalty,
+                frequency_penalty=frequency_penalty,
                 timeout=5  # 5 second timeout
             )
             
@@ -159,12 +173,16 @@ def generate_summary(messages: List[Dict[str, str]]) -> str:
         logger.info(f"Generating summary for conversation with {len(messages)} messages")
         
         response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            model=OPENAI_SUMMARY_MODEL,
             messages=[
                 {"role": "user", "content": SUMMARY_PROMPT.format(conversation=conversation_text)}
             ],
-            temperature=float(os.getenv("OPENAI_SUMMARY_TEMPERATURE", "0.3")),
-            max_tokens=int(os.getenv("OPENAI_SUMMARY_MAX_TOKENS", "500")),
+            temperature=OPENAI_SUMMARY_TEMPERATURE,
+            max_tokens=OPENAI_SUMMARY_MAX_TOKENS,
+            top_p=OPENAI_SUMMARY_TOP_P,
+            presence_penalty=OPENAI_SUMMARY_PRESENCE_PENALTY,
+            frequency_penalty=OPENAI_SUMMARY_FREQUENCY_PENALTY,
+            stream=False,
             timeout=30
         )
         
@@ -226,44 +244,28 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         logger.info(f"Generating evaluation for conversation with {len(messages)} messages")
         
         response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            model=OPENAI_EVALUATION_MODEL,
             messages=[
                 {"role": "user", "content": EVALUATION_PROMPT.format(conversation=conversation_text)}
             ],
-            temperature=float(os.getenv("OPENAI_EVALUATION_TEMPERATURE", "0.3")),
-            max_tokens=int(os.getenv("OPENAI_EVALUATION_MAX_TOKENS", "800")),
+            temperature=OPENAI_EVALUATION_TEMPERATURE,
+            max_tokens=OPENAI_EVALUATION_MAX_TOKENS,
+            top_p=OPENAI_EVALUATION_TOP_P,
+            presence_penalty=OPENAI_EVALUATION_PRESENCE_PENALTY,
+            frequency_penalty=OPENAI_EVALUATION_FREQUENCY_PENALTY,
+            stream=False,
             timeout=30
         )
         
-        # Parse JSON response
+        # Get evaluation text response
         evaluation_text = response.choices[0].message.content.strip()
         logger.info("Evaluation generated successfully")
         
-        try:
-            evaluation_data = json.loads(evaluation_text)
-            # Validate required fields
-            required_fields = ["sentiment", "key_topics", "user_satisfaction", "conversation_quality", "main_concerns", "resolution_status"]
-            for field in required_fields:
-                if field not in evaluation_data:
-                    ErrorLogger.log_warning(f"Missing required field '{field}' in evaluation response")
-                    evaluation_data[field] = None if field in ["key_topics", "main_concerns"] else 5 if field in ["user_satisfaction", "conversation_quality"] else "neutral" if field == "sentiment" else "unresolved"
-            
-            return evaluation_data
-            
-        except json.JSONDecodeError as json_error:
-            ErrorLogger.log_error(json_error, "JSON parsing in evaluation", {
-                "evaluation_text": evaluation_text[:200] + "..." if len(evaluation_text) > 200 else evaluation_text
-            })
-            return {
-                "sentiment": "neutral",
-                "key_topics": [],
-                "user_satisfaction": 5,
-                "conversation_quality": 5,
-                "main_concerns": [],
-                "resolution_status": "unresolved",
-                "error": "Failed to parse evaluation JSON",
-                "raw_response": evaluation_text[:200] + "..." if len(evaluation_text) > 200 else evaluation_text
-            }
+        # Return the evaluation as text instead of JSON
+        return {
+            "evaluation_text": evaluation_text,
+            "type": "text_evaluation"
+        }
         
     except Exception as e:
         ErrorLogger.log_error(e, "Evaluation generation", {
