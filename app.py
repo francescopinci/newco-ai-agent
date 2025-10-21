@@ -281,11 +281,6 @@ def main():
             if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended or not st.session_state.interview_complete):
                 end_conversation()
             
-            # Note about end conversation button
-            if not st.session_state.conversation_ended:
-                st.markdown("---")
-                if not st.session_state.interview_complete:
-                    st.info("**Note**: The 'End Conversation' button will be enabled once the AI completes the interview.")
             
             st.markdown("---")
             st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
