@@ -86,6 +86,10 @@ def initialize_session_state():
             st.session_state.conversation_ended = False
             logger.info("Initialized conversation_ended in session state")
         
+        if "interview_complete" not in st.session_state:
+            st.session_state.interview_complete = False
+            logger.info("Initialized interview_complete in session state")
+        
         if "error_count" not in st.session_state:
             st.session_state.error_count = 0
             logger.info("Initialized error_count in session state")
@@ -105,6 +109,7 @@ def start_new_conversation():
         st.session_state.messages = []
         st.session_state.session_id = generate_session_id()
         st.session_state.conversation_ended = False
+        st.session_state.interview_complete = False
         st.session_state.error_count = 0
         logger.info(f"New conversation started with session ID: {st.session_state.session_id}")
         st.rerun()
@@ -273,19 +278,26 @@ def main():
             if st.button("Start New Conversation", use_container_width=True):
                 start_new_conversation()
             
-            if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended):
+            if st.button("End Conversation", use_container_width=True, disabled=st.session_state.conversation_ended or not st.session_state.interview_complete):
                 end_conversation()
             
             # Warning about keeping tab open
             if not st.session_state.conversation_ended:
                 st.markdown("---")
-                st.warning("**Important**: When ending a conversation, please keep this tab open until you see the confirmation message. Closing the tab too early may result in data loss.")
+                if st.session_state.interview_complete:
+                    st.warning("**Important**: When ending a conversation, please keep this tab open until you see the confirmation message. Closing the tab too early may result in data loss.")
+                else:
+                    st.info("**Note**: The 'End Conversation' button will be enabled once the AI completes the interview.")
             
             st.markdown("---")
             st.markdown(f"**Session ID:** `{st.session_state.session_id}`")
             
             if st.session_state.conversation_ended:
                 st.success("Conversation ended and saved")
+            elif st.session_state.interview_complete:
+                st.success("Interview complete - ready to end")
+            else:
+                st.info("Interview in progress...")
             
             # Error count display (for debugging)
             if hasattr(st.session_state, 'error_count') and st.session_state.error_count > 0:
@@ -384,6 +396,13 @@ def main():
                         try:
                             st.session_state.messages.append({"role": "assistant", "content": full_response})
                             logger.info(f"Added assistant response to session state: {len(full_response)} characters")
+                            
+                            # Check if the interview is complete based on LLM response
+                            if not st.session_state.interview_complete:
+                                if "INTERVIEW_COMPLETE" in full_response:
+                                    st.session_state.interview_complete = True
+                                    logger.info("Interview completion detected in assistant response")
+                                    
                         except Exception as e:
                             ErrorLogger.log_error(e, "Add assistant message to session state")
                             st.error("Unable to save the response. Please try again.")
