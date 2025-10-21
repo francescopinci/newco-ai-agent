@@ -83,64 +83,37 @@ def get_chat_response(messages: List[Dict[str, str]]) -> Generator[str, None, No
                     yield chunk.choices[0].delta.content
             
             logger.info(f"OpenAI streaming completed successfully with {chunk_count} chunks")
-            return
+            return  # Success - exit function
             
         except RateLimitError as e:
-            ErrorLogger.log_error(e, "OpenAI rate limit", {
-                "attempt": attempt + 1,
-                "max_retries": max_retries,
-                "retry_delay": retry_delay
-            })
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
-                continue
-            else:
-                yield "I'm currently experiencing high demand. Please try again in a few moments."
-                return
-                
+            error_msg = "I'm currently experiencing high demand. Please try again in a few moments."
         except APITimeoutError as e:
-            ErrorLogger.log_error(e, "OpenAI API timeout", {
-                "attempt": attempt + 1,
-                "max_retries": max_retries
-            })
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                continue
-            else:
-                yield "The request timed out. Please try again."
-                return
-                
+            error_msg = "The request timed out. Please try again."
         except APIConnectionError as e:
-            ErrorLogger.log_error(e, "OpenAI API connection error", {
-                "attempt": attempt + 1,
-                "max_retries": max_retries
-            })
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                continue
-            else:
-                yield "I'm having trouble connecting. Please check your internet connection and try again."
-                return
-                
+            error_msg = "I'm having trouble connecting. Please check your internet connection and try again."
         except AuthenticationError as e:
+            error_msg = "Authentication error. Please contact support."
             ErrorLogger.log_error(e, "OpenAI authentication error", {
                 "user_message": "Authentication failed - please check API key configuration"
             })
-            yield "Authentication error. Please contact support."
-            return
-            
+            yield error_msg
+            return  # Don't retry auth errors
         except Exception as e:
-            ErrorLogger.log_error(e, "OpenAI API error", {
-                "attempt": attempt + 1,
-                "max_retries": max_retries,
-                "messages_count": len(messages)
-            })
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                continue
-            else:
-                yield "I apologize, but I'm experiencing technical difficulties. Please try again later."
-                return
+            error_msg = "I apologize, but I'm experiencing technical difficulties. Please try again later."
+        
+        # Log error and decide whether to retry
+        ErrorLogger.log_error(e, f"OpenAI API error (attempt {attempt + 1})", {
+            "attempt": attempt + 1,
+            "max_retries": max_retries,
+            "messages_count": len(messages)
+        })
+        
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+            continue
+        else:
+            yield error_msg
+            return
 
 def generate_summary(messages: List[Dict[str, str]]) -> str:
     """
@@ -211,13 +184,10 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         if not messages:
             ErrorLogger.log_warning("Empty messages list provided for evaluation generation")
             return {
-                "sentiment": "neutral",
-                "key_topics": [],
-                "user_satisfaction": 5,
-                "conversation_quality": 5,
-                "main_concerns": [],
-                "resolution_status": "unresolved",
-                "error": "No conversation to evaluate"
+                "evaluation_text": "No conversation to evaluate",
+                "type": "text_evaluation",
+                "status": "error",
+                "error_details": "No conversation to evaluate"
             }
         
         client = get_openai_client()
@@ -232,13 +202,10 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         if not conversation_text.strip():
             ErrorLogger.log_warning("No valid conversation content found for evaluation")
             return {
-                "sentiment": "neutral",
-                "key_topics": [],
-                "user_satisfaction": 5,
-                "conversation_quality": 5,
-                "main_concerns": [],
-                "resolution_status": "unresolved",
-                "error": "No meaningful conversation content to evaluate"
+                "evaluation_text": "No meaningful conversation content to evaluate",
+                "type": "text_evaluation",
+                "status": "error",
+                "error_details": "No meaningful conversation content to evaluate"
             }
         
         logger.info(f"Generating evaluation for conversation with {len(messages)} messages")
@@ -264,7 +231,8 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
         # Return the evaluation as text instead of JSON
         return {
             "evaluation_text": evaluation_text,
-            "type": "text_evaluation"
+            "type": "text_evaluation",
+            "status": "success"
         }
         
     except Exception as e:
@@ -273,13 +241,10 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
             "conversation_length": len(conversation_text) if 'conversation_text' in locals() else 0
         })
         return {
-            "sentiment": "neutral",
-            "key_topics": [],
-            "user_satisfaction": 5,
-            "conversation_quality": 5,
-            "main_concerns": [],
-            "resolution_status": "unresolved",
-            "error": f"Error generating evaluation: {str(e)}"
+            "evaluation_text": f"Error generating evaluation: {str(e)}",
+            "type": "text_evaluation",
+            "status": "error",
+            "error_details": str(e)
         }
 
 def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str]]) -> List[Dict[str, str]]:

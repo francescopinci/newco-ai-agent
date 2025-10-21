@@ -5,6 +5,7 @@ Main Streamlit application for the LLM Chat Agent.
 import streamlit as st
 import os
 import traceback
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 from utils.supabase_client import save_conversation_with_summary, generate_session_id
@@ -66,13 +67,20 @@ def initialize_session_state():
             logger.info("Initialized messages in session state")
         
         if "session_id" not in st.session_state:
-            try:
-                st.session_state.session_id = generate_session_id()
-                logger.info(f"Generated session ID: {st.session_state.session_id}")
-            except Exception as e:
-                ErrorLogger.log_error(e, "Session ID generation in initialization")
-                st.error("Unable to start session. Please refresh the page.")
-                st.stop()
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    st.session_state.session_id = generate_session_id()
+                    logger.info(f"Generated session ID: {st.session_state.session_id}")
+                    break
+                except Exception as e:
+                    ErrorLogger.log_error(e, f"Session ID generation attempt {attempt + 1}")
+                    if attempt == max_retries - 1:
+                        # Final fallback
+                        st.session_state.session_id = f"fallback_{int(time.time())}"
+                        logger.warning(f"Using fallback session ID: {st.session_state.session_id}")
+                    else:
+                        time.sleep(1)  # Wait before retry
         
         if "conversation_ended" not in st.session_state:
             st.session_state.conversation_ended = False
@@ -293,6 +301,7 @@ def main():
             # Chat input with comprehensive error handling
             try:
                 if prompt := st.chat_input("Type your message here..."):
+                    # Validate input BEFORE processing
                     if not prompt.strip():
                         ErrorLogger.log_warning("Empty prompt received", "Chat input")
                         st.warning("Please enter a message.")

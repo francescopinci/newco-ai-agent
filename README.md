@@ -24,7 +24,7 @@ A Streamlit-based conversational agent using OpenAI's gpt-4o-mini with conversat
 -- Create conversations table
 CREATE TABLE conversations (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    session_id UUID UNIQUE NOT NULL,
+    session_id TEXT UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     messages JSONB NOT NULL,
     summary TEXT,
