@@ -50,20 +50,27 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
+# Initialize session state with proper error handling
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "session_id" not in st.session_state:
-    st.session_state.session_id = generate_session_id()
+    try:
+        st.session_state.session_id = generate_session_id()
+    except Exception as e:
+        st.error(f"Failed to generate session ID: {str(e)}")
+        st.stop()
 if "conversation_ended" not in st.session_state:
     st.session_state.conversation_ended = False
 
 def start_new_conversation():
     """Start a new conversation session."""
     st.session_state.messages = []
-    st.session_state.session_id = generate_session_id()
-    st.session_state.conversation_ended = False
-    st.rerun()
+    try:
+        st.session_state.session_id = generate_session_id()
+        st.session_state.conversation_ended = False
+        st.rerun()
+    except Exception as e:
+        st.error(f"Failed to start new conversation: {str(e)}")
 
 def end_conversation():
     """End the current conversation and save to database."""
