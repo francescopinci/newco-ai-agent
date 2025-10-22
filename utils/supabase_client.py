@@ -15,16 +15,13 @@ from .logger import ErrorLogger, logger
 # Module-level variable to store the client (singleton pattern)
 _supabase_client = None
 
-def get_supabase_client():
+def get_supabase_client(supabase_url: str, supabase_key: str):
     """Get or create Supabase client (singleton pattern)."""
     global _supabase_client
     if _supabase_client is None:
         try:
-            supabase_url = os.getenv("SUPABASE_URL")
-            supabase_key = os.getenv("SUPABASE_KEY")
-            
             if not supabase_url or not supabase_key:
-                raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+                raise ValueError("Supabase URL and key are required")
             
             # Configure client options
             options = ClientOptions(
@@ -42,6 +39,8 @@ def get_supabase_client():
 def save_conversation(
     session_id: str, 
     messages: List[Dict[str, str]], 
+    supabase_url: str,
+    supabase_key: str,
     summary: Optional[str] = None,
     evaluation: Optional[Dict[str, Any]] = None
 ) -> bool:
@@ -74,7 +73,7 @@ def save_conversation(
                 if not isinstance(msg, dict) or 'role' not in msg or 'content' not in msg:
                     raise ValueError(f"Message {i} must have 'role' and 'content' keys")
             
-            supabase = get_supabase_client()
+            supabase = get_supabase_client(supabase_url, supabase_key)
             
             data = {
                 "session_id": session_id,
@@ -120,7 +119,10 @@ def save_conversation(
 
 def save_conversation_with_summary(
     session_id: str, 
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]],
+    supabase_url: str,
+    supabase_key: str,
+    openai_api_key: str
 ) -> bool:
     """
     Save conversation and generate summary/evaluation.
@@ -144,7 +146,7 @@ def save_conversation_with_summary(
         evaluation = None
         
         try:
-            summary = generate_summary(messages)
+            summary = generate_summary(messages, openai_api_key)
             logger.info("Summary generated successfully")
         except Exception as e:
             ErrorLogger.log_error(e, "Summary generation in save_conversation_with_summary", {
@@ -154,7 +156,7 @@ def save_conversation_with_summary(
             # Continue without summary
         
         try:
-            evaluation = generate_evaluation(messages)
+            evaluation = generate_evaluation(messages, openai_api_key)
             logger.info("Evaluation generated successfully")
         except Exception as e:
             ErrorLogger.log_error(e, "Evaluation generation in save_conversation_with_summary", {
@@ -164,7 +166,7 @@ def save_conversation_with_summary(
             # Continue without evaluation
         
         # Save to database
-        success = save_conversation(session_id, messages, summary, evaluation)
+        success = save_conversation(session_id, messages, supabase_url, supabase_key, summary, evaluation)
         
         if success:
             logger.info(f"Conversation with summary saved successfully for session_id: {session_id}")
@@ -185,12 +187,14 @@ def save_conversation_with_summary(
         })
         return False
 
-def get_conversation(session_id: str) -> Optional[Dict[str, Any]]:
+def get_conversation(session_id: str, supabase_url: str, supabase_key: str) -> Optional[Dict[str, Any]]:
     """
     Retrieve conversation by session ID.
     
     Args:
         session_id: Unique session identifier
+        supabase_url: Supabase project URL
+        supabase_key: Supabase anon key
         
     Returns:
         Dict: Conversation data or None if not found
@@ -200,7 +204,7 @@ def get_conversation(session_id: str) -> Optional[Dict[str, Any]]:
             ErrorLogger.log_warning("Invalid session_id provided for conversation retrieval", "Get conversation")
             return None
         
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(supabase_url, supabase_key)
         logger.info(f"Retrieving conversation for session_id: {session_id}")
         
         result = supabase.table("conversations").select("*").eq("session_id", session_id).execute()
@@ -218,12 +222,14 @@ def get_conversation(session_id: str) -> Optional[Dict[str, Any]]:
         })
         return None
 
-def get_all_conversations(limit: int = 100) -> List[Dict[str, Any]]:
+def get_all_conversations(limit: int, supabase_url: str, supabase_key: str) -> List[Dict[str, Any]]:
     """
     Retrieve all conversations.
     
     Args:
         limit: Maximum number of conversations to retrieve
+        supabase_url: Supabase project URL
+        supabase_key: Supabase anon key
         
     Returns:
         List[Dict]: List of conversation data
@@ -233,7 +239,7 @@ def get_all_conversations(limit: int = 100) -> List[Dict[str, Any]]:
             ErrorLogger.log_warning(f"Invalid limit provided: {limit}", "Get all conversations")
             limit = 100
         
-        supabase = get_supabase_client()
+        supabase = get_supabase_client(supabase_url, supabase_key)
         logger.info(f"Retrieving all conversations with limit: {limit}")
         
         result = supabase.table("conversations").select("*").order("created_at", desc=True).limit(limit).execute()

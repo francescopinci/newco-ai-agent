@@ -15,21 +15,19 @@ from config import (
     OPENAI_SUMMARY_MODEL, OPENAI_SUMMARY_TEMPERATURE, OPENAI_SUMMARY_MAX_TOKENS,
     OPENAI_SUMMARY_TOP_P, OPENAI_SUMMARY_PRESENCE_PENALTY, OPENAI_SUMMARY_FREQUENCY_PENALTY,
     OPENAI_EVALUATION_MODEL, OPENAI_EVALUATION_TEMPERATURE, OPENAI_EVALUATION_MAX_TOKENS,
-    OPENAI_EVALUATION_TOP_P, OPENAI_EVALUATION_PRESENCE_PENALTY, OPENAI_EVALUATION_FREQUENCY_PENALTY,
-    TEST_MODE
+    OPENAI_EVALUATION_TOP_P, OPENAI_EVALUATION_PRESENCE_PENALTY, OPENAI_EVALUATION_FREQUENCY_PENALTY
 )
 
 # Module-level variable to store the client (singleton pattern)
 _openai_client = None
 
-def get_openai_client():
+def get_openai_client(api_key: str):
     """Get or create OpenAI client (singleton pattern)."""
     global _openai_client
     if _openai_client is None:
         try:
-            api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                raise ValueError("OPENAI_API_KEY environment variable is not set")
+                raise ValueError("OpenAI API key is required")
             
             _openai_client = OpenAI(api_key=api_key)
             logger.info("OpenAI client initialized successfully")
@@ -38,7 +36,7 @@ def get_openai_client():
             raise
     return _openai_client
 
-def get_chat_response(messages: List[Dict[str, str]]) -> str:
+def get_chat_response(messages: List[Dict[str, str]], api_key: str) -> str:
     """
     Get complete response from OpenAI for chat.
     
@@ -52,7 +50,7 @@ def get_chat_response(messages: List[Dict[str, str]]) -> str:
     
     for attempt in range(max_retries):
         try:
-            client = get_openai_client()
+            client = get_openai_client(api_key)
             
             # Agent configuration - optimized for conversational interaction
             model = OPENAI_MODEL
@@ -94,7 +92,7 @@ def get_chat_response(messages: List[Dict[str, str]]) -> str:
     # This should never be reached, but just in case
     raise Exception("Maximum retry attempts exceeded.")
 
-def generate_summary(messages: List[Dict[str, str]]) -> str:
+def generate_summary(messages: List[Dict[str, str]], api_key: str) -> str:
     """
     Generate a summary of the conversation.
     
@@ -109,7 +107,7 @@ def generate_summary(messages: List[Dict[str, str]]) -> str:
             ErrorLogger.log_warning("Empty messages list provided for summary generation")
             return "No conversation to summarize."
         
-        client = get_openai_client()
+        client = get_openai_client(api_key)
         
         # Format conversation for summary
         conversation_text = "\n".join([
@@ -149,7 +147,7 @@ def generate_summary(messages: List[Dict[str, str]]) -> str:
         })
         return "Unable to generate summary due to technical difficulties."
 
-def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
+def generate_evaluation(messages: List[Dict[str, str]], api_key: str) -> Dict[str, Any]:
     """
     Generate structured evaluation of the conversation.
     
@@ -169,7 +167,7 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
                 "error_details": "No conversation to evaluate"
             }
         
-        client = get_openai_client()
+        client = get_openai_client(api_key)
         
         # Format conversation for evaluation
         conversation_text = "\n".join([
@@ -226,7 +224,7 @@ def generate_evaluation(messages: List[Dict[str, str]]) -> Dict[str, Any]:
             "error_details": str(e)
         }
 
-def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str]], test_mode: bool = False) -> List[Dict[str, str]]:
     """
     Create message list with system prompt for OpenAI API.
     
@@ -267,13 +265,13 @@ def create_messages_with_system_prompt(conversation_messages: List[Dict[str, str
         logger.info(f"Creating messages with system prompt for {len(conversation_messages)} conversation messages")
         
         # Choose system prompt based on test mode
-        system_prompt = TEST_SYSTEM_PROMPT if TEST_MODE else SYSTEM_PROMPT
-        if TEST_MODE:
+        system_prompt = TEST_SYSTEM_PROMPT if test_mode else SYSTEM_PROMPT
+        if test_mode:
             logger.info("Using TEST_SYSTEM_PROMPT for test mode")
-            print(f"DEBUG: Using TEST_SYSTEM_PROMPT - TEST_MODE={TEST_MODE}")
+            print(f"DEBUG: Using TEST_SYSTEM_PROMPT - test_mode={test_mode}")
         else:
             logger.info("Using SYSTEM_PROMPT for normal mode")
-            print(f"DEBUG: Using SYSTEM_PROMPT - TEST_MODE={TEST_MODE}")
+            print(f"DEBUG: Using SYSTEM_PROMPT - test_mode={test_mode}")
         
         return [
             {"role": "system", "content": system_prompt}

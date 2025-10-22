@@ -43,24 +43,26 @@ CREATE INDEX idx_conversations_created_at ON conversations(created_at);
 
 ### 2. Environment Variables
 
-1. Copy `.env.example` to `.env`
-2. Fill in your API keys:
+1. Copy the example secrets file:
 
 ```bash
-cp .env.example .env
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 ```
 
-Edit `.env`:
-```
-OPENAI_API_KEY=your_openai_api_key_here
-SUPABASE_URL=your_supabase_url_here
-SUPABASE_KEY=your_supabase_anon_key_here
-TEST_MODE=false
+2. Edit `.streamlit/secrets.toml` with your actual API keys:
+```toml
+[general]
+TEST_MODE = false
+OPENAI_API_KEY = "your_openai_api_key_here"
+
+[database]
+SUPABASE_URL = "your_supabase_url_here"
+SUPABASE_KEY = "your_supabase_anon_key_here"
 ```
 
 ### Test Mode
 
-For testing the app without going through the full interview flow, set `TEST_MODE=true` in your `.env` file. This will:
+For testing the app without going through the full interview flow, set `TEST_MODE=true` in your `secrets.toml` file. This will:
 
 - Use a simplified system prompt that asks only 2 questions
 - Guide users to end the conversation quickly
@@ -90,10 +92,17 @@ streamlit run app.py
 1. Push your code to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
 3. Connect your GitHub repository
-4. In the app settings, add these secrets:
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - `SUPABASE_URL`: Your Supabase project URL
-   - `SUPABASE_KEY`: Your Supabase anon key
+4. In the app settings, go to "Advanced settings" and add your secrets in TOML format:
+
+```toml
+[general]
+TEST_MODE = false
+OPENAI_API_KEY = "your_openai_api_key_here"
+
+[database]
+SUPABASE_URL = "your_supabase_url_here"
+SUPABASE_KEY = "your_supabase_anon_key_here"
+```
 
 ## Querying Stored Conversations
 
@@ -118,7 +127,9 @@ SELECT * FROM conversations WHERE session_id = 'your-session-id';
 newco-ai-agent/
 ├── app.py                 # Main Streamlit application
 ├── requirements.txt       # Python dependencies
-├── .env.example          # Environment variables template
+├── .streamlit/
+│   ├── secrets.toml.example # Template for secrets (in git)
+│   └── secrets.toml        # Local secrets (not in git)
 ├── .gitignore            # Git ignore file
 ├── README.md             # Setup and deployment instructions
 └── utils/

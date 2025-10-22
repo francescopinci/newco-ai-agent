@@ -1,13 +1,7 @@
 """
 Application configuration settings.
-Only secrets need to be configured manually in Streamlit Cloud.
+Static configuration only - secrets are handled via st.secrets in app.py
 """
-
-import os
-from dotenv import load_dotenv
-
-# Load environment variables first
-load_dotenv()
 
 # OpenAI Agent Configuration (conversational interaction)
 OPENAI_MODEL = "gpt-4o-mini"
@@ -35,7 +29,4 @@ OPENAI_EVALUATION_FREQUENCY_PENALTY = 0.3
 
 # App Configuration
 APP_TITLE = "The Unfair Advantage Scout"
-APP_DESCRIPTION = "Expert mentor and interviewer for aspiring startup founders"
-
-# Test Mode Configuration
-TEST_MODE = os.getenv("TEST_MODE", "false").lower() == "true"
+APP_DESCRIPTION = "Expert mentor and interviewer for aspiring startup founders."

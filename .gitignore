@@ -38,5 +38,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/
+# Streamlit secrets (keep example file)
+.streamlit/secrets.toml
+!.streamlit/secrets.toml.example

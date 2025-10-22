@@ -7,11 +7,10 @@ import os
 import traceback
 import time
 from datetime import datetime
-from dotenv import load_dotenv
 from utils.supabase_client import save_conversation_with_summary, generate_session_id
 from utils.openai_client import get_chat_response, create_messages_with_system_prompt
 from utils.logger import ErrorLogger, logger
-from config import APP_TITLE, APP_DESCRIPTION, TEST_MODE
+from config import APP_TITLE, APP_DESCRIPTION
 
 
 # Page configuration (MUST BE FIRST Streamlit command)
@@ -106,7 +105,7 @@ def start_new_conversation():
         ErrorLogger.log_error(e, "Start new conversation")
         st.error("Unable to start new conversation. Please try again.")
 
-def end_conversation():
+def end_conversation(openai_api_key: str, supabase_url: str, supabase_key: str):
     """End the current conversation and save to database with summary generation."""
     try:
         if not st.session_state.messages:
@@ -122,7 +121,10 @@ def end_conversation():
         # Save conversation with summary and evaluation
         success = save_conversation_with_summary(
             st.session_state.session_id,
-            st.session_state.messages
+            st.session_state.messages,
+            supabase_url,
+            supabase_key,
+            openai_api_key
         )
         
         if success:
@@ -161,17 +163,17 @@ def display_chat_message(role: str, content: str):
         # Fallback display
         st.write(f"**{role.title()}:** {content or '[Error displaying message]'}")
 
-def validate_environment():
+def validate_environment(openai_key, supabase_url, supabase_key):
     """Validate required environment variables."""
     missing_vars = []
     
-    if not os.getenv("OPENAI_API_KEY"):
+    if not openai_key:
         missing_vars.append("OPENAI_API_KEY")
     
-    if not os.getenv("SUPABASE_URL"):
+    if not supabase_url:
         missing_vars.append("SUPABASE_URL")
     
-    if not os.getenv("SUPABASE_KEY"):
+    if not supabase_key:
         missing_vars.append("SUPABASE_KEY")
     
     if missing_vars:
@@ -186,30 +188,27 @@ def main():
     try:
         logger.info("Starting main application")
         
+        # Load configuration from secrets
+        try:
+            TEST_MODE = st.secrets["general"]["TEST_MODE"]
+            OPENAI_API_KEY = st.secrets["general"]["OPENAI_API_KEY"]
+            SUPABASE_URL = st.secrets["database"]["SUPABASE_URL"]
+            SUPABASE_KEY = st.secrets["database"]["SUPABASE_KEY"]
+        except:
+            st.error("Configuration error. Please check your secrets.")
+            st.stop()
+        
         # Header
         st.title(APP_TITLE)
         st.markdown(APP_DESCRIPTION)
         
         # Validate environment variables
-        env_valid, missing_vars = validate_environment()
-        
+        env_valid, missing_vars = validate_environment(OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY)
         if not env_valid:
             st.error("Application configuration is incomplete.")
             st.error("Please contact support for assistance.")
             return
-        
-        # Check for OpenAI API key specifically
-        if not os.getenv("OPENAI_API_KEY"):
-            st.error("Unable to connect to AI service. Please contact support.")
-            return
-        
-        # Check for Supabase credentials
-        if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
-            st.warning("Supabase credentials not found. Conversations will not be saved.")
-            logger.warning("Supabase credentials missing - conversations will not be saved")
-    
-        # UI state will be calculated after message processing
-    
+
         # Main chat interface
         if not st.session_state.conversation_ended:
             # Display chat history with error handling
@@ -257,8 +256,6 @@ def main():
             if TEST_MODE:
                 st.markdown("---")
                 st.markdown("**Test Mode Active**")
-                st.markdown(f"**TEST_MODE:** `{TEST_MODE}`")
-                st.markdown(f"**Environment:** `{os.getenv('TEST_MODE', 'not set')}`")
                 st.info("Using simplified test prompt - only 2 questions")
                 st.markdown("---")
             
@@ -267,7 +264,7 @@ def main():
             
             # Enable end conversation button when interview is complete and conversation hasn't ended
             if st.button("End Conversation", use_container_width=True, disabled=end_button_disabled):
-                end_conversation()
+                end_conversation(OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY)
             
             
             st.markdown("---")
@@ -308,11 +305,11 @@ def main():
                     # Generate and display assistant response
                     try:
                         # Prepare messages with system prompt
-                        messages_with_system = create_messages_with_system_prompt(st.session_state.messages)
+                        messages_with_system = create_messages_with_system_prompt(st.session_state.messages, TEST_MODE)
                         logger.info(f"Created messages with system prompt: {len(messages_with_system)} total messages")
                         
                         # Get complete response from OpenAI
-                        full_response = get_chat_response(messages_with_system)
+                        full_response = get_chat_response(messages_with_system, OPENAI_API_KEY)
                         
                         # Display the response
                         with st.chat_message("assistant"):
